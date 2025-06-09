@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Monetownik z rejestracją</title>
+  <style>
+    body { background: #1a1a1a; color: #eee; font-family: Arial, sans-serif; padding: 20px; }
+    select, input, button { padding: 6px; margin: 5px 0; border-radius: 4px; border: none; font-size: 1rem; }
+    button { background: #333; color: #eee; cursor: pointer; }
+    button:hover { background: #555; }
+    table { border-collapse: collapse; width: 100%; margin-top: 15px; }
+    th, td { border: 1px solid #444; padding: 8px; text-align: center; }
+    th { background: #222; }
+    #loggedInUser { font-weight: bold; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+
+<h1>Monetownik STZ</h1>
+
+<div>
+  <h2>Logowanie</h2>
+  <label for="loginPlayer">Wybierz gracza:</label>
+  <select id="loginPlayer"></select>
+  <label for="passwordInput">Hasło:</label>
+  <input type="password" id="passwordInput" placeholder="Wpisz hasło" />
+  <button onclick="login()">Zaloguj</button>
+</div>
+
+<div>
+  <h2>Rejestracja</h2>
+  <label for="newName">Nazwa gracza:</label>
+  <input type="text" id="newName" />
+  <label for="newPassword">Hasło:</label>
+  <input type="password" id="newPassword" />
+  <button onclick="register()">Zarejestruj</button>
+</div>
+
+<div id="loggedInUser" style="display:none;">
+  <p>Zalogowany: <span id="currentUserName"></span></p>
+</div>
+
+<div id="actions" style="display:none;">
+  <label>Wyślij monety do:</label><br />
+  <select id="toPlayer"></select><br />
+  <label for="amount">Ilość Monet:</label><br />
+  <input type="number" id="amount" min="1" value="1" /><br />
+  <button onclick="transferCoins()">Prześlij</button><br />
+
+  <label>Konwertuj Monety (10 🪙 = 1 🧪):</label><br />
+  <input type="number" id="convertAmount" min="10" value="10" /><br />
+  <button onclick="convertCoinsToLevels()">Konwertuj</button>
+</div>
+
+<div id="adminPanel" style="display:none;">
+  <h3>🔧 Panel Admina (dla .)</h3>
+  <label for="adminTarget">Gracz:</label>
+  <select id="adminTarget"></select><br />
+  <label for="adminAmount">Monety:</label>
+  <input type="number" id="adminAmount" min="1" /><br />
+  <button onclick="adminAddCoins()">Dodaj</button>
+</div>
+
+<h2>Stan konta:</h2>
+<table>
+  <thead><tr><th>Imię</th><th>Monety 🪙</th><th>Level 🧪</th></tr></thead>
+  <tbody id="playersTableBody"></tbody>
+</table>
+
+<script>
+let players = JSON.parse(localStorage.getItem("players")) || [
+  { name: ".", coins: 10000, level: 1, password: "admin" }
+];
+
+let loggedInIndex = null;
+
+function saveData() {
+  localStorage.setItem("players", JSON.stringify(players));
+}
+
+function populateLogin() {
+  const loginSelect = document.getElementById('loginPlayer');
+  loginSelect.innerHTML = '';
+  players.forEach((p, i) => {
+    const option = document.createElement('option');
+    option.value = i;
+    option.textContent = p.name;
+    loginSelect.appendChild(option);
+  });
+}
+
+function populateToPlayers() {
+  const to = document.getElementById('toPlayer');
+  to.innerHTML = '';
+  players.forEach((p, i) => {
+    if (i !== loggedInIndex) {
+      const option = document.createElement('option');
+      option.value = i;
+      option.textContent = p.name;
+      to.appendChild(option);
+    }
+  });
+}
+
+function setupAdminPanel() {
+  const adminPanel = document.getElementById("adminPanel");
+  if (players[loggedInIndex].name === ".") {
+    adminPanel.style.display = "block";
+    const select = document.getElementById("adminTarget");
+    select.innerHTML = '';
+    players.forEach((p, i) => {
+      const option = document.createElement('option');
+      option.value = i;
+      option.textContent = p.name;
+      select.appendChild(option);
+    });
+  } else {
+    adminPanel.style.display = "none";
+  }
+}
+
+function login() {
+  const index = parseInt(document.getElementById('loginPlayer').value);
+  const pass = document.getElementById('passwordInput').value;
+  if (pass === players[index].password) {
+    loggedInIndex = index;
+    document.getElementById('currentUserName').textContent = players[loggedInIndex].name;
+    document.getElementById('loggedInUser').style.display = 'block';
+    document.getElementById('actions').style.display = 'block';
+    populateToPlayers();
+    render();
+    setupAdminPanel();
+  } else {
+    alert("Złe hasło!");
+    document.getElementById('passwordInput').value = "";
+  }
+}
+
+function render() {
+  const tbody = document.getElementById('playersTableBody');
+  tbody.innerHTML = '';
+  players.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${p.name}</td><td>${p.coins} 🪙</td><td>${p.level} 🧪</td>`;
+    tbody.appendChild(tr);
+  });
+  saveData();
+}
+
+function transferCoins() {
+  const toIndex = parseInt(document.getElementById('toPlayer').value);
+  const amount = parseInt(document.getElementById('amount').value);
+  if (isNaN(amount) || amount <= 0 || players[loggedInIndex].coins < amount) {
+    alert("Niepoprawna ilość monet.");
+    return;
+  }
+  players[loggedInIndex].coins -= amount;
+  players[toIndex].coins += amount;
+  render();
+}
+
+function convertCoinsToLevels() {
+  const amount = parseInt(document.getElementById('convertAmount').value);
+  if (isNaN(amount) || amount < 10 || players[loggedInIndex].coins < amount) {
+    alert("Podaj poprawną ilość monet (min. 10).");
+    return;
+  }
+  const levels = Math.floor(amount / 10);
+  players[loggedInIndex].coins -= levels * 10;
+  players[loggedInIndex].level += levels;
+  render();
+}
+
+function adminAddCoins() {
+  const targetIndex = parseInt(document.getElementById("adminTarget").value);
+  const amount = parseInt(document.getElementById("adminAmount").value);
+  if (isNaN(amount) || amount <= 0) {
+    alert("Niepoprawna ilość.");
+    return;
+  }
+  players[targetIndex].coins += amount;
+  render();
+}
+
+function register() {
+  const name = document.getElementById("newName").value.trim();
+  const pass = document.getElementById("newPassword").value.trim();
+  if (!name || !pass) {
+    alert("Podaj nazwę i hasło.");
+    return;
+  }
+  if (players.find(p => p.name === name)) {
+    alert("Gracz o tej nazwie już istnieje.");
+    return;
+  }
+  players.push({ name: name, coins: 0, level: 1, password: pass });
+  populateLogin();
+  render();
+  alert("Zarejestrowano gracza!");
+  document.getElementById("newName").value = "";
+  document.getElementById("newPassword").value = "";
+}
+
+populateLogin();
+render();
+</script>
+
+</body>
+</html>
