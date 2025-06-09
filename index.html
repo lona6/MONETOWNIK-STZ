@@ -17,7 +17,7 @@
 </head>
 <body>
 
-<h1>Monetownik STZ</h1>
+<h1>Monetownik z rejestracją i zapisem</h1>
 
 <div>
   <h2>Logowanie</h2>
@@ -70,7 +70,7 @@
 
 <script>
 let players = JSON.parse(localStorage.getItem("players")) || [
-  { name: ".", coins: 10000, level: 1, password: "admin" }
+  { name: ".", coins: 10000, level: 1, password: "0099" }
 ];
 
 let loggedInIndex = null;
@@ -198,6 +198,15 @@ function register() {
   populateLogin();
   render();
   alert("Zarejestrowano gracza!");
+
+  // Automatyczne zalogowanie nowego gracza:
+  loggedInIndex = players.length - 1;
+  document.getElementById('currentUserName').textContent = name;
+  document.getElementById('loggedInUser').style.display = 'block';
+  document.getElementById('actions').style.display = 'block';
+  populateToPlayers();
+  setupAdminPanel();
+
   document.getElementById("newName").value = "";
   document.getElementById("newPassword").value = "";
 }
